@@ -83,9 +83,11 @@ class DataTableScan(BaseTableScan):
             with Pool(self.ops.conf.get(WORKER_THREAD_POOL_SIZE_PROP,
                                         cpu_count())) as reader_scan_pool:
                 partitions = ([scan for scan in reader_scan_pool.map(self.get_partitions_for_manifest, matching_manifests)])
+                _logger.info("pyang debug: multi-process scan finish")
                 return set().union(*partitions)
         else:
             partitions = [self.get_partitions_for_manifest(manifest) for manifest in matching_manifests]
+            _logger.info("pyang debug: single-process scan finish")
             return set().union(*partitions)
 
     def cache_loader(self, spec_id):
@@ -103,12 +105,14 @@ class DataTableScan(BaseTableScan):
                 for file in reader.filter_rows(self.row_filter).select(BaseTableScan.SNAPSHOT_COLUMNS).iterator()]
 
     def get_partitions_for_manifest(self, manifest):
+        _logger.info("pyang debug: start to scan manifest {}".format(manifest.manifest_path))
         from .filesystem import FileSystemInputFile
         input_file = FileSystemInputFile.from_location(manifest.manifest_path, self.ops.conf)
         reader = ManifestReader.read(input_file)
         partitions = set()
         for file in reader.filter_rows(self.row_filter).select(BaseTableScan.SNAPSHOT_COLUMNS).iterator():
             partitions.add(file.partition())
+        _logger.info("pyang debug: finish scan manifest {}".format(manifest.manifest_path))
         return partitions
 
     def target_split_size(self, ops):
